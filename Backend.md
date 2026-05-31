@@ -1,6 +1,6 @@
 # TP Engine — Backend & v2 Architecture (Netlify + no-key data)
 
-We have 2 hours. v2 makes the brief *real*: the backend pulls **live weather and real places (no API keys)**, so the engine senses conditions and reasons over actual candidates instead of inventing them. Claude is the brain over real data, not the data source.
+We have 2 hours. v2 makes the brief *real*: the backend pulls **live weather and real places (no API keys)**, so the engine senses conditions and reasons over actual candidates instead of inventing them. Gemini is the brain over real data, not the data source.
 
 **Stack decisions locked:** ship on **Netlify** (frontend + serverless functions, one deploy, same origin). Data is **no-key**: Open-Meteo (weather + geocoding) and OpenStreetMap Overpass (places).
 
@@ -12,7 +12,7 @@ We have 2 hours. v2 makes the brief *real*: the backend pulls **live weather and
 |---|---|
 | Claude invents places | Real POIs from OpenStreetMap (Overpass) |
 | Disruptions are buttons only | Live weather (Open-Meteo) — the plan routes around forecast rain automatically |
-| Browser → Anthropic via proxy | Netlify Functions backend: thin handlers + shared service/integration layers, validation |
+| Browser → LLM via proxy | Netlify Functions backend: thin handlers + shared service/integration layers, validation |
 | Timeline only | Map view + live conditions strip + travel-time gaps |
 
 The reranking lever: **"real-time updates" stops being a button and becomes sensed reality.**
@@ -28,7 +28,7 @@ flowchart TB
       end
       subgraph Lib [Shared lib - bundled into functions]
         E[engine.js orchestration]
-        CL[claude.js SDK + JSON validation]
+        CL[llm.js Gemini SDK + JSON validation]
         W[weather.js Open-Meteo]
         P[places.js Overpass]
         G[geo.js geocode + haversine]
@@ -36,17 +36,17 @@ flowchart TB
     end
     UI -->|/api/plan same-origin| H --> E
     E --> G & W & P
-    E --> CL --> ANT[Anthropic API]
+    E --> CL --> GEM[Gemini API]
 ```
 
-Key lives only in Netlify env (`ANTHROPIC_API_KEY`); never shipped to the client. Same-origin calls = no CORS config.
+Key lives only in Netlify env (`GEMINI_API_KEY`); never shipped to the client. Same-origin calls = no CORS config.
 
 ## 3. Stack
 
 | Concern | Pick | Why |
 |---|---|---|
 | Runtime | **Netlify Functions** (Node, ES modules) | One deploy with the frontend; same origin. |
-| LLM | **@anthropic-ai/sdk** in a function | Key stays server-side. |
+| LLM | **@google/genai** (Gemini) in a function | Key stays server-side. |
 | Weather + geocode | **Open-Meteo** | Free, no key. Forecast + city→lat/lng. The unlock. |
 | Places | **OSM Overpass API** | Free, no key. Real POIs by tag near coords. |
 | Validation | **zod** | Validate request bodies *and* the model's JSON. |
@@ -61,7 +61,7 @@ Key lives only in Netlify env (`ANTHROPIC_API_KEY`); never shipped to the client
 2. **Geocode** city → lat/lng (Open-Meteo geocoding API).
 3. **Fetch weather** for the day → hourly forecast (rain probability, temp).
 4. **Fetch candidate POIs** near center via Overpass, filtered by interests → ~15–20 candidates `{name, type, lat, lng}`.
-5. **One Claude call** over candidates + weather + constraints → a sequenced 5-stop day. The instruction that does the magic: *only pick from these candidates; prefer indoor ones during forecast-rainy hours; respect realistic travel time.*
+5. **One Gemini call** over candidates + weather + constraints → a sequenced 5-stop day. The instruction that does the magic: *only pick from these candidates; prefer indoor ones during forecast-rainy hours; respect realistic travel time.*
 6. **Validate** returned JSON (zod), **enrich** stops with coords from the candidate set, **compute travel gaps** (haversine + assumed speed).
 7. Return.
 
@@ -127,12 +127,12 @@ On LLM/parse/integration failure, return the curated `FALLBACK` itinerary with `
 ## 7. Caching & efficiency
 
 - Serverless functions are stateless between invocations, so **don't rely on in-memory caching**. For demo volume, fetching fresh each call is fine. (If you want caching, Netlify Blobs is the native option — but it's a nice-to-have, not v2 core.)
-- **One Claude call per action.** Pass candidates *into* the call so it reasons in a single pass — no chained calls.
+- **One Gemini call per action.** Pass candidates *into* the call so it reasons in a single pass — no chained calls.
 - Cap candidates (~20) and stops (5); cap `max_tokens`. Disable the action button while a request is in flight.
 
 ## 8. Security (serverless-appropriate)
 
-- Key only in Netlify env (`ANTHROPIC_API_KEY`); never `VITE_`-prefixed; never in the bundle; `.env` git-ignored.
+- Key only in Netlify env (`GEMINI_API_KEY`); never `VITE_`-prefixed; never in the bundle; `.env` git-ignored.
 - **Security headers** via `netlify.toml` `[[headers]]` (CSP, `X-Content-Type-Options`, `Referrer-Policy`).
 - **Validate + length-cap** every input with zod; render model output as **text only**, never HTML.
 - **Rate limiting:** enable Netlify's rate-limiting on `/api/*` (in-memory limiting is unreliable in serverless). Input caps + server-side key already remove the main abuse vectors.
@@ -157,7 +157,7 @@ tp-engine/
 │   └── api.js                # fetch wrappers to /api/*
 ├── lib/                      # shared backend logic (bundled into functions)
 │   ├── engine.js             # pipeline orchestration
-│   ├── claude.js             # Anthropic SDK + JSON validation
+│   ├── llm.js                # Gemini SDK + JSON validation
 │   ├── weather.js            # Open-Meteo (forecast + geocode)
 │   ├── places.js             # Overpass
 │   ├── geo.js                # haversine, type mapping
@@ -195,7 +195,7 @@ tp-engine/
        Referrer-Policy = "strict-origin-when-cross-origin"
    ```
 2. Push to GitHub → on Netlify, **Add new site → import the repo**. It detects Vite, builds `dist`, and deploys `netlify/functions` automatically.
-3. Set env vars in **Site configuration → Environment variables**: `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` (e.g. `claude-sonnet-4-6`, or a Haiku-class model for speed). **No `VITE_` prefix.**
+3. Set env vars in **Site configuration → Environment variables**: `GEMINI_API_KEY`, `GEMINI_MODEL` (e.g. `gemini-2.0-flash`, or `gemini-2.5-flash`). **No `VITE_` prefix.**
 4. Frontend calls `/api/plan` etc. (same origin — `config.path` handles routing). Auto-deploys on every push.
 5. `netlify dev` runs frontend + functions locally so local mirrors prod.
 
@@ -206,7 +206,7 @@ tp-engine/
 | 0–10 | Scaffold: Vite frontend + `netlify/functions/health.js` + `netlify.toml`; confirm `netlify dev` serves `/api/health`. |
 | 10–25 | `lib/weather.js` (Open-Meteo geocode + forecast — no key, quick win); test via a temp route. |
 | 25–45 | `lib/places.js` (Overpass query + tag→type mapping + trim) + curated `fallback.js`. |
-| 45–70 | `lib/engine.js` + `lib/claude.js` + zod → `/api/plan` returns a real itinerary. |
+| 45–70 | `lib/engine.js` + `lib/llm.js` + zod → `/api/plan` returns a real itinerary. |
 | 70–85 | `/api/reroute` over the same candidate pool. |
 | 85–105 | Frontend: Leaflet map, conditions strip, travel-gap timeline, reroute highlight + `aria-live`. |
 | 105–115 | netlify.toml headers + Netlify rate limiting, 2–3 vitest tests, design polish. |
