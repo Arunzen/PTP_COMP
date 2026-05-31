@@ -48,6 +48,49 @@ describe("plan handler", () => {
 });
 
 describe("reroute handler", () => {
+  it("returns 200 for a valid reroute body", async () => {
+    reroute.mockResolvedValue({
+      city: "Lisbon",
+      summary: "x",
+      weather: { summary: "Dry", hourly: [] },
+      stops: [],
+      change_summary: "Adjusted the plan.",
+      changed_ids: ["n1"],
+    });
+    const body = {
+      itinerary: {
+        city: "Lisbon",
+        summary: "x",
+        weather: { summary: "Dry", hourly: [] },
+        stops: [],
+      },
+      disruption: "closed",
+      now: new Date().toISOString(),
+      closedId: "n1",
+    };
+    const res = await rerouteHandler(postReq(body));
+    expect(res.status).toBe(200);
+    expect((await res.json()).change_summary).toBe("Adjusted the plan.");
+    expect(reroute).toHaveBeenCalledOnce();
+  });
+
+  it("400s on invalid reroute body", async () => {
+    const res = await rerouteHandler(
+      postReq({
+        itinerary: {
+          city: "",
+          summary: "",
+          weather: { summary: "x", hourly: [] },
+          stops: [],
+        },
+        disruption: "rain",
+        now: new Date().toISOString(),
+      })
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("reroute_failed");
+  });
+
   it("405s on non-POST", async () => {
     const res = await rerouteHandler({ method: "GET" });
     expect(res.status).toBe(405);

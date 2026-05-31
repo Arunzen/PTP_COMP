@@ -1,12 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock the Gemini SDK — no network, no API key.
+// Mock the Gemini client's generateContent via injectable client factory.
 const generateContent = vi.hoisted(() => vi.fn());
-vi.mock("@google/genai", () => ({
-  GoogleGenAI: vi.fn(() => ({ models: { generateContent } })),
-}));
 
-import { sequenceDay, rerouteDay, PLAN_PROMPT } from "../lib/llm.js";
+import { sequenceDay, rerouteDay, PLAN_PROMPT, __setClientFactory } from "../lib/llm.js";
 
 const goodPlan = {
   summary: "A classic Lisbon day",
@@ -28,7 +25,11 @@ const args = {
   pace: "balanced",
 };
 
-beforeEach(() => generateContent.mockReset());
+beforeEach(() => {
+  generateContent.mockReset();
+  // Inject a client whose models.generateContent is our mocked fn.
+  __setClientFactory(async () => ({ models: { generateContent } }));
+});
 
 describe("sequenceDay", () => {
   it("returns 5 schema-valid stops from clean JSON", async () => {
@@ -45,10 +46,13 @@ describe("sequenceDay", () => {
   });
 
   it("rejects when the SDK throws", async () => {
-    generateContent.mockImplementation(async () => {
-      throw new Error("api_down");
-    });
-    await expect(sequenceDay(args)).rejects.toThrow("api_down");
+    generateContent.mockRejectedValue(new Error("api_down"));
+    try {
+      await sequenceDay(args);
+      throw new Error("Expected sequenceDay to reject");
+    } catch (err) {
+      expect(err).toMatchObject({ message: "api_down" });
+    }
   });
 
   it("rejects on unparseable output", async () => {

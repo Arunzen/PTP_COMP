@@ -1,8 +1,350 @@
-/* Placeholder — replaced in Phase 3 (Task 10) with the full editorial-travel theme. */
 :root {
   color-scheme: light;
+  color: #102a43;
+  background: #f4f7fb;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
+  color: #102a43;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+.hero {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 320px);
+  align-items: start;
+  margin-bottom: 32px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #0f4c81;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.25rem, 3vw, 3.5rem);
+  line-height: 1.03;
+}
+
+.hero-copy {
+  max-width: 54ch;
+  line-height: 1.8;
+  margin-top: 16px;
+  color: #334e68;
+}
+
+.hero-card,
+.panel {
+  background: #ffffff;
+  border: 1px solid #dbe4ef;
+  border-radius: 24px;
+  padding: 26px;
+  box-shadow: 0 24px 60px rgba(16, 42, 67, 0.08);
+}
+
+.hero-card strong {
+  display: block;
+  margin-bottom: 18px;
+  font-size: 0.98rem;
+}
+
+.hero-card ol {
+  margin: 0;
+  padding-left: 20px;
+  color: #334e68;
+}
+
+.hero-card li {
+  margin-bottom: 10px;
+}
+
+.content {
+  display: grid;
+  gap: 24px;
+}
+
+.plan-form {
+  display: grid;
+  gap: 18px;
+}
+
+.plan-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: #334e68;
+}
+
+.plan-form input,
+.plan-form select {
+  width: 100%;
+  border: 1px solid #c8d5e6;
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: #f8fbff;
+  outline: none;
+}
+
+.plan-form input:focus,
+.plan-form select:focus {
+  border-color: #5b8def;
+  box-shadow: 0 0 0 4px rgba(91, 141, 239, 0.12);
+}
+
+.field-row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plan-form button {
+  align-self: start;
+  border: none;
+  border-radius: 14px;
+  padding: 14px 20px;
+  background: #2b6cb0;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.plan-form button:hover:not(:disabled) {
+  background: #1d4f91;
+  transform: translateY(-1px);
+}
+
+.plan-form button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0 0;
+}
+
+.reroute-button {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #2b6cb0;
+  color: white;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.reroute-button.secondary {
+  background: #526f95;
+}
+
+.reroute-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.reroute-button:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.change-summary {
+  margin: 16px 0 0;
+  padding: 16px;
+  background: #e8f2ff;
+  border: 1px solid #c8d9ea;
+  border-radius: 16px;
+  color: #1f3c64;
+}
+
+.status-message,
+.error-message {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.status-message {
+  color: #334e68;
+}
+
+.error-message {
+  color: #b83280;
+}
+
+.results-panel {
+  display: grid;
+  gap: 22px;
+}
+
+.results-head {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+
+.degraded-banner {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff4e5;
+  color: #7a4d0a;
+  border: 1px solid #f6d8ae;
+}
+
+.map-panel {
+  width: 100%;
+  min-height: 320px;
+}
+
+.leaflet-container {
+  border-radius: 20px;
+}
+
+.results-head h2 {
+  margin: 8px 0 6px;
+  font-size: 1.8rem;
+}
+
+.meta {
+  margin: 0 0 8px;
+  color: #627d98;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.82rem;
+}
+
+.weather-card {
+  background: #f0f6ff;
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.weather-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.weather-cell {
+  background: white;
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  padding: 14px;
+  color: #102a43;
+}
+
+.stop-list {
+  display: grid;
+  gap: 18px;
+}
+
+.stop-card {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 88px minmax(0, 1fr);
+  padding: 20px;
+  background: white;
+  border: 1px solid #dbe4ef;
+  border-radius: 22px;
+}
+
+.stop-badge {
+  min-width: 88px;
+  font-weight: 700;
+  color: #2b6cb0;
+  background: #e6f0ff;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+}
+
+.stop-title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stop-title-row h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.pill {
+  background: #e5f4ff;
+  color: #1b3a61;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  text-transform: capitalize;
+}
+
+.stop-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 860px) {
+  .hero,
+  .results-head {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .app-shell {
+    width: min(100%, calc(100% - 24px));
+    padding: 24px 0 36px;
+  }
+
+  .stop-card {
+    grid-template-columns: 1fr;
+  }
+
+  .weather-grid {
+    grid-template-columns: 1fr;
+  }
 }
