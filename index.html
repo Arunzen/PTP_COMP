@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lodestar — the day plan that reroutes itself</title>
+<style>
+  :root{
+    --sand:#f6f1e7; --sand-2:#efe7d6; --ink:#1f2a2e; --muted:#6b7a80;
+    --teal:#0f7d76; --teal-dk:#0b5d58; --teal-soft:#d6ece9;
+    --amber:#d98a2b; --green:#2e9e5b; --green-soft:#dff3e6; --red:#c0492f;
+    --card:#fffdf8; --line:#e4dccb; --shadow:0 6px 22px rgba(31,42,46,.08);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(180deg,var(--sand),var(--sand-2)); color:var(--ink);
+    -webkit-font-smoothing:antialiased; line-height:1.45;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:28px 20px 80px}
+  header.top{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px}
+  .logo{font-size:30px; font-weight:800; letter-spacing:-.5px; color:var(--teal-dk)}
+  .logo .star{color:var(--amber)}
+  .tagline{color:var(--muted); font-style:italic; font-size:15px}
+
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:18px; margin-top:18px}
+  .panel h2{margin:0 0 10px; font-size:14px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+
+  textarea{width:100%; min-height:74px; resize:vertical; border:1px solid var(--line);
+    border-radius:12px; padding:12px 14px; font:inherit; background:#fffefb; color:var(--ink)}
+  textarea:focus{outline:none; border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-soft)}
+
+  .chips{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px}
+  .chip{border:1px dashed var(--teal); color:var(--teal-dk); background:transparent;
+    border-radius:999px; padding:6px 12px; font-size:13px; cursor:pointer; transition:.15s}
+  .chip:hover{background:var(--teal-soft)}
+
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px}
+  button.primary{background:var(--teal); color:#fff; border:none; border-radius:12px;
+    padding:11px 20px; font-size:15px; font-weight:600; cursor:pointer; transition:.15s}
+  button.primary:hover{background:var(--teal-dk)}
+  button.primary:disabled{opacity:.5; cursor:not-allowed}
+
+  .summary{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px}
+  .pill{background:var(--teal-soft); color:var(--teal-dk); border-radius:999px;
+    padding:4px 11px; font-size:12.5px; font-weight:600}
+
+  /* timeline */
+  .timeline{position:relative; margin-top:6px}
+  .nowmark{display:flex; align-items:center; gap:10px; margin:14px 2px; color:var(--amber); font-weight:700; font-size:13px}
+  .nowmark .line{flex:1; height:2px; background:repeating-linear-gradient(90deg,var(--amber),var(--amber) 6px,transparent 6px,transparent 12px)}
+
+  .stop{display:flex; gap:14px; padding:14px; border:1px solid var(--line);
+    border-radius:14px; background:var(--card); margin:10px 0; align-items:flex-start;
+    transition:transform .45s ease, box-shadow .3s, background .4s, opacity .45s}
+  .stop .time{min-width:78px; text-align:right; font-weight:700; color:var(--teal-dk); font-size:14px}
+  .stop .time small{display:block; font-weight:500; color:var(--muted); font-size:11.5px; margin-top:2px}
+  .stop .icon{font-size:24px; line-height:1.2}
+  .stop .body{flex:1}
+  .stop .name{font-weight:700; font-size:16px}
+  .stop .blurb{color:var(--muted); font-size:13.5px; margin-top:2px}
+  .stop .meta{display:flex; gap:7px; flex-wrap:wrap; margin-top:8px}
+  .tag{font-size:11.5px; padding:2px 9px; border-radius:999px; background:var(--sand-2); color:var(--ink)}
+  .tag.in{background:#e7eef0; color:#33555c}
+  .tag.out{background:#fbf0db; color:#8a5a18}
+  .tag.cost{background:#eef4ee; color:#2e6b45}
+  .tag.role{background:var(--teal-soft); color:var(--teal-dk); font-weight:700}
+
+  .stop.added{background:var(--green-soft); border-color:var(--green); animation:pop .5s ease}
+  .stop.moved{background:#fff7e9; border-color:var(--amber)}
+  .stop.removing{opacity:0; transform:translateX(30px)}
+  .stop.removing .name{text-decoration:line-through; color:var(--red)}
+  @keyframes pop{0%{transform:translateY(10px) scale(.98); opacity:0}100%{transform:none; opacity:1}}
+
+  /* disruption */
+  .disrupt{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  button.dis{border:1px solid var(--line); background:#fffefb; color:var(--ink);
+    border-radius:12px; padding:10px 14px; font-size:14px; cursor:pointer; transition:.15s; font-weight:600}
+  button.dis:hover:not(:disabled){border-color:var(--teal); background:var(--teal-soft)}
+  button.dis:disabled{opacity:.45; cursor:not-allowed}
+  select{border:1px solid var(--line); border-radius:10px; padding:9px 10px; font:inherit; background:#fffefb}
+
+  .banner{margin-top:14px; border-radius:14px; padding:14px 16px; font-size:15px;
+    background:#fff; border-left:5px solid var(--teal); box-shadow:var(--shadow);
+    animation:slidein .4s ease; display:none}
+  .banner.show{display:block}
+  .banner.rain{border-left-color:#3a7bd5; background:#f2f7fd}
+  .banner.closed{border-left-color:var(--red); background:#fdf2f0}
+  .banner.behind{border-left-color:var(--amber); background:#fdf7ec}
+  .banner b{color:var(--teal-dk)}
+  @keyframes slidein{from{opacity:0; transform:translateY(-6px)}to{opacity:1; transform:none}}
+
+  .hidden{display:none}
+  footer{margin-top:30px; text-align:center; color:var(--muted); font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">Lode<span class="star">★</span>star</div>
+    <div class="tagline">the day plan that reroutes itself.</div>
+  </header>
+
+  <!-- INTAKE -->
+  <section class="panel">
+    <h2>Tell me about your day</h2>
+    <textarea id="intake" placeholder="e.g. One day in Lisbon — I love history and food, and I'd enjoy a scenic walk. Mid budget."></textarea>
+    <div class="chips" id="chips"></div>
+    <div class="row">
+      <button class="primary" id="planBtn">Plan my day →</button>
+      <div class="summary" id="summary"></div>
+    </div>
+  </section>
+
+  <!-- ITINERARY -->
+  <section class="panel hidden" id="planPanel">
+    <h2 id="planTitle">Your day</h2>
+    <div class="timeline" id="timeline"></div>
+  </section>
+
+  <!-- DISRUPTION -->
+  <section class="panel hidden" id="disPanel">
+    <h2>Reality hits — reroute the rest of the day</h2>
+    <div class="disrupt">
+      <button class="dis" id="rainBtn">☔ Rain starts now</button>
+      <button class="dis" id="closedBtn">🚫 This stop just closed</button>
+      <select id="closedSel"></select>
+      <button class="dis" id="behindBtn">⏰ Running 90 min behind</button>
+      <button class="dis" id="resetBtn" style="margin-left:auto">↺ Reset day</button>
+    </div>
+    <div class="banner" id="banner"></div>
+  </section>
+
+  <footer>Lodestar · Prompt to Prototype · fully offline deterministic engine — no network, no dead screens.</footer>
+</div>
+
+<script>
+/* =========================================================================
+   LODESTAR ENGINE  (deterministic, offline — see TRD.md)
+   ========================================================================= */
+
+/* ---------- Data model ---------- */
+function S(id,cityId,name,category,indoor,interests,area,openHour,closeHour,durationMin,cost,blurb,sig){
+  return {id,cityId,name,category,indoor,interests,area,openHour,closeHour,durationMin,cost,blurb,sig:!!sig};
+}
+
+const CITIES = [
+  {id:'lisbon', name:'Lisbon', start:9},
+  {id:'kyoto',  name:'Kyoto',  start:9},
+];
+
+const STOPS = [
+  /* ---- Lisbon ---- */
+  S('pasteis','lisbon','Pastéis de Belém','cafe',true,['food'],'belem',8,22,45,1,'The original 1837 custard-tart bakery — a warm, crowded ritual.',true),
+  S('jeronimos','lisbon','Jerónimos Monastery','landmark',true,['history','architecture'],'belem',10,17,75,1,'Soaring Manueline cloisters, Vasco da Gama’s resting place.',true),
+  S('belemtower','lisbon','Belém Tower','landmark',false,['history','architecture'],'belem',10,17,55,1,'A 16th-century riverside fortress jutting into the Tagus.'),
+  S('maat','lisbon','MAAT Museum','museum',true,['art','architecture'],'belem',10,19,75,2,'Sleek wave-shaped museum of art, architecture & technology.'),
+  S('alfama','lisbon','Alfama Walk','walk',false,['history','architecture'],'alfama',0,24,60,0,'Lose yourself in the oldest quarter’s tiled, tangled lanes.',true),
+  S('miradouro','lisbon','Miradouro de Santa Luzia','viewpoint',false,['nature','architecture'],'alfama',0,24,30,0,'A tiled terrace with the postcard view over the old town & river.'),
+  S('se','lisbon','Sé Cathedral','landmark',true,['history'],'alfama',9,19,45,1,'Lisbon’s fortress-like Romanesque cathedral, founded 1147.'),
+  S('fado','lisbon','Fado Museum','museum',true,['art','history'],'alfama',10,18,60,2,'The story of Portugal’s soulful, melancholic music.'),
+  S('gulbenkian','lisbon','Gulbenkian Museum','museum',true,['art'],'parque',10,18,90,2,'A jewel-box private collection from ancient Egypt to Lalique.',true),
+  S('eduardo','lisbon','Parque Eduardo VII','park',false,['nature'],'parque',0,24,45,0,'Lisbon’s formal hilltop park with a clipped-hedge axis to the river.'),
+  S('timeout','lisbon','Time Out Market','market',true,['food','shopping'],'baixa',10,24,75,2,'40 stalls of the city’s best cooks under one buzzing roof.',true),
+  S('comercio','lisbon','Praça do Comércio','landmark',false,['history','architecture'],'baixa',0,24,30,0,'The grand riverfront plaza — Lisbon’s front door for centuries.'),
+  S('santajusta','lisbon','Santa Justa Lift','viewpoint',false,['architecture'],'baixa',7,23,30,1,'A wrought-iron neo-Gothic elevator to a rooftop city view.'),
+  S('ramiro','lisbon','Cervejaria Ramiro','restaurant',true,['food'],'principe',12,24,90,3,'Legendary beer-hall seafood — garlic prawns and the steak roll.',true),
+  S('cevicheria','lisbon','A Cevicheria','restaurant',true,['food'],'principe',12,23,75,2,'Punchy Peruvian ceviche under a giant hanging octopus.'),
+
+  /* ---- Kyoto ---- */
+  S('fushimi','kyoto','Fushimi Inari Shrine','landmark',false,['history','nature'],'south',0,24,90,0,'Thousands of vermilion torii gates winding up the mountain.',true),
+  S('kiyomizu','kyoto','Kiyomizu-dera','landmark',false,['history','architecture'],'higashiyama',6,18,75,1,'A wooden temple stage hung over the hillside, est. 778.',true),
+  S('gion','kyoto','Gion District Walk','walk',false,['history'],'gion',0,24,60,0,'Wooden teahouse lanes where you may glimpse a geiko at dusk.',true),
+  S('nishiki','kyoto','Nishiki Market','market',true,['food','shopping'],'central',9,18,60,2,'“Kyoto’s Kitchen” — 400m of pickles, tofu, knives & snacks.',true),
+  S('knm','kyoto','Kyoto National Museum','museum',true,['art','history'],'higashiyama',9,17,90,2,'Imperial-era treasures: scrolls, ceramics, Buddhist sculpture.'),
+  S('manga','kyoto','Manga Museum','museum',true,['art'],'central',10,18,75,2,'A former school holding 300,000 volumes you can read on the lawn.'),
+  S('arashiyama','kyoto','Arashiyama Bamboo Grove','walk',false,['nature'],'arashiyama',0,24,45,0,'A luminous green corridor of towering, creaking bamboo.',true),
+  S('tenryuji','kyoto','Tenryu-ji Temple','landmark',false,['history','nature'],'arashiyama',8,17,60,1,'A Zen temple with a 700-year-old borrowed-scenery garden.'),
+  S('kinkakuji','kyoto','Kinkaku-ji (Golden Pavilion)','landmark',false,['history','architecture'],'north',9,17,55,1,'A gold-leafed pavilion mirrored in its reflecting pond.',true),
+  S('nijo','kyoto','Nijo Castle','landmark',true,['history','architecture'],'central',8,17,75,1,'A shogun’s castle with “nightingale” floors that chirp underfoot.'),
+  S('nishikiramen','kyoto','Ippudo Ramen','restaurant',true,['food'],'central',11,23,55,1,'Rich tonkotsu broth and springy noodles — comfort in a bowl.'),
+  S('tsujiri','kyoto','Tsujiri Tea House','cafe',true,['food'],'gion',10,20,45,1,'Deep matcha parfaits from a 160-year-old tea purveyor.'),
+  S('philosophers','kyoto','Philosopher’s Path','walk',false,['nature'],'north',0,24,45,0,'A canal-side stroll under cherry trees between temples.'),
+  S('pontocho','kyoto','Pontocho Alley','restaurant',true,['food','nightlife'],'gion',17,24,90,3,'A lantern-lit dining alley over the Kamo River.',true),
+];
+
+/* ---------- Helpers ---------- */
+const CAT_ICON={museum:'🏛️',gallery:'🖼️',market:'🛍️',park:'🌳',walk:'🚶',viewpoint:'🌅',landmark:'🏰',cafe:'☕',restaurant:'🍽️'};
+const NOW = 14*60; // 2:00 PM
+function fmt(m){let h=Math.floor(m/60)%24,mm=m%60,ap=h<12?'AM':'PM',h12=h%12||12;return h12+':'+String(mm).padStart(2,'0')+' '+ap;}
+function costStr(c){return c===0?'Free':'$'.repeat(c);}
+function travel(a,b){return a.area===b.area?10:25;}
+const byId=id=>STOPS.find(s=>s.id===id);
+
+/* ---------- Intake parsing ---------- */
+const INTEREST_KW={
+  art:['art','museum','gallery','paint','exhibit'],
+  food:['food','eat','foodie','dining','restaurant','cuisine','seafood','market'],
+  history:['history','historic','old','ancient','heritage','ruin','temple','castle','monastery'],
+  nature:['nature','park','garden','outdoor','outdoors','walk','scenic','green','river'],
+  shopping:['shop','shopping','market','boutique'],
+  architecture:['architect','architecture','building','design'],
+  nightlife:['nightlife','bar','night','drinks'],
+};
+function parseIntake(text){
+  const t=(text||'').toLowerCase();
+  let city = (/kyoto|japan|japanese/.test(t))?'kyoto':(/lisbon|portugal|portuguese/.test(t)?'lisbon':'lisbon');
+  const interests=[];
+  for(const k in INTEREST_KW){ if(INTEREST_KW[k].some(w=>t.includes(w))) interests.push(k); }
+  if(interests.length===0) interests.push('history','food','art');
+  let budget=2; // 'mid'/'medium'/'moderate' all keep the default
+  if(/cheap|backpack|affordable|shoestring|frugal|on a budget/.test(t))budget=1;
+  if(/splurge|luxury|fancy|fine\s?din|treat|high\s?end/.test(t))budget=3;
+  let pace='balanced';
+  if(/relaxed|chill|slow|leisure|easy/.test(t))pace='relaxed';
+  if(/packed|everything|maximi|lots of|as much/.test(t))pace='packed';
+  return {city,interests,budget,pace};
+}
+const PACE_STOPS={relaxed:4,balanced:5,packed:6};
+
+/* ---------- Scoring ---------- */
+function score(stop,prefs){
+  let sc=0;
+  for(const i of prefs.interests) if(stop.interests.includes(i)) sc+=2;
+  if(stop.cost<=prefs.budget) sc+=1;
+  if(stop.sig) sc+=1;
+  return sc;
+}
+
+/* ---------- Plan builder ---------- */
+function buildPlan(prefs){
+  const pool=STOPS.filter(s=>s.cityId===prefs.city);
+  const meals=pool.filter(s=>s.category==='restaurant');
+  meals.sort((a,b)=>score(b,prefs)-score(a,prefs));
+  const dinner = meals[0] || pool.find(s=>s.interests.includes('food'));
+  // lunch = a food-y, non-dinner stop (restaurant or market/cafe)
+  const lunchPool=pool.filter(s=>s.id!==dinner.id && s.interests.includes('food') && s.openHour<=13);
+  lunchPool.sort((a,b)=>score(b,prefs)-score(a,prefs));
+  const lunch = lunchPool[0] || meals.find(m=>m.id!==dinner.id) || dinner;
+
+  const usedMeal=new Set([dinner.id,lunch.id]);
+  const sights=pool.filter(s=>s.category!=='restaurant' && !usedMeal.has(s.id));
+  sights.sort((a,b)=>score(b,prefs)-score(a,prefs)||b.sig-a.sig);
+
+  const sightCount=Math.max(2,PACE_STOPS[prefs.pace]-2);
+  const selected=sights.slice(0,sightCount);
+
+  // bias outdoor stops into the afternoon so the day mixes & rain has bite
+  const morningCount=Math.ceil(sightCount/2);
+  const afternoonCount=sightCount-morningCount;
+  const outdoor=selected.filter(s=>!s.indoor);
+  const afternoon=outdoor.slice(0,afternoonCount);
+  const aft=new Set(afternoon.map(s=>s.id));
+  const rest=selected.filter(s=>!aft.has(s.id));
+  while(afternoon.length<afternoonCount && rest.length) afternoon.push(rest.shift());
+  const morning=rest;
+
+  // assemble ordered sequence with meal anchors
+  const seq=[];
+  morning.forEach(s=>seq.push({stop:s,role:'sight'}));
+  seq.push({stop:lunch,role:'lunch'});
+  afternoon.forEach(s=>seq.push({stop:s,role:'sight'}));
+  seq.push({stop:dinner,role:'dinner'});
+
+  return retime(seq, CITIES.find(c=>c.id===prefs.city).start*60);
+}
+
+/* ---------- Time-blocking ---------- */
+function retime(seq, startMin, delayIdx=-1, delayMin=0){
+  let clock=startMin;
+  for(let i=0;i<seq.length;i++){
+    const it=seq[i], s=it.stop;
+    let arrival = (i===0) ? startMin : seq[i-1].end + travel(seq[i-1].stop, s);
+    if(i===delayIdx) arrival += delayMin;
+    arrival=Math.max(arrival, s.openHour*60);
+    if(it.role==='lunch')  arrival=Math.max(arrival, 13*60);   // ~1:00 PM
+    if(it.role==='dinner') arrival=Math.max(arrival, 19*60+30); // ~7:30 PM
+    it.start=arrival;
+    it.end=arrival+s.durationMin;
+  }
+  return seq;
+}
+
+/* ---------- Reroute: RAIN ---------- */
+function rerouteRain(seq,prefs){
+  const used=new Set(seq.map(i=>i.stop.id));
+  const diff={removed:[],added:[],moved:[],reason:'rain',meta:{}};
+  const indoorPool=STOPS.filter(s=>s.cityId===prefs.city && s.indoor && s.category!=='restaurant' && !used.has(s.id))
+                        .sort((a,b)=>score(b,prefs)-score(a,prefs));
+  for(const it of seq){
+    if(it.start>=NOW && it.role==='sight' && !it.stop.indoor){
+      const repl=indoorPool.shift();
+      if(repl){
+        diff.removed.push(it.stop.id); diff.added.push(repl.id);
+        used.delete(it.stop.id); used.add(repl.id);
+        it.stop=repl;
+      }
+    }
+  }
+  return finalize(seq,prefs,diff);
+}
+
+/* ---------- Reroute: CLOSED ---------- */
+function rerouteClosed(seq,prefs,closedId){
+  const idx=seq.findIndex(i=>i.stop.id===closedId);
+  if(idx<0) return finalize(seq,prefs,{removed:[],added:[],moved:[],reason:'closed',meta:{}});
+  const closed=seq[idx].stop;
+  const used=new Set(seq.map(i=>i.stop.id));
+  const cand=STOPS.filter(s=>s.cityId===prefs.city && s.category!=='restaurant' && !used.has(s.id))
+    .map(s=>({s, sc: score(s,prefs)
+                 + (s.area===closed.area?3:0)
+                 + (s.interests.some(i=>closed.interests.includes(i))?2:0)
+                 + (s.indoor===closed.indoor?1:0)}))
+    .sort((a,b)=>b.sc-a.sc);
+  const diff={removed:[closed.id],added:[],moved:[],reason:'closed',meta:{closedName:closed.name}};
+  if(cand[0]){ seq[idx].stop=cand[0].s; diff.added.push(cand[0].s.id); diff.meta.replName=cand[0].s.name; }
+  else { seq.splice(idx,1); }
+  return finalize(seq,prefs,diff);
+}
+
+/* ---------- Reroute: BEHIND ---------- */
+function rerouteBehind(seq,prefs){
+  const delay=90;
+  const diff={removed:[],added:[],moved:[],reason:'behind',meta:{minutes:delay}};
+  const start0=seq[0].start;
+  const firstAfter=seq.findIndex(i=>i.start>=NOW && i.role==='sight');
+  const delayIdx = firstAfter<0 ? -1 : firstAfter;
+
+  function dinnerOverran(s){
+    const d=s.find(i=>i.role==='dinner');
+    // dinner is anchored at 19:30; if a preceding sight pushes its *arrival* past the anchor, day overran
+    const di=s.indexOf(d);
+    const arrival = di===0?d.start : s[di-1].end + travel(s[di-1].stop,d.stop);
+    return arrival > 19*60+30;
+  }
+
+  retime(seq,start0,delayIdx,delay);
+  // drop lowest-scored post-now sight until dinner fits at 7:30
+  let guard=0;
+  while(dinnerOverran(seq) && guard++<6){
+    const drops=seq.filter(i=>i.role==='sight' && i.start>=NOW);
+    if(!drops.length) break;
+    drops.sort((a,b)=>score(a.stop,prefs)-score(b.stop,prefs));
+    const victim=drops[0];
+    diff.removed.push(victim.stop.id);
+    seq.splice(seq.indexOf(victim),1);
+    retime(seq,start0,seq.findIndex(i=>i.start>=NOW && i.role==='sight'),delay);
+  }
+  return {seq,diff};
+}
+
+/* shared: re-time tail (preserving morning) + compute moved */
+function finalize(seq,prefs,diff){
+  const start0=seq[0].start;
+  const before={}; seq.forEach(i=>before[i.stop.id]=i.start);
+  retime(seq,start0);
+  for(const i of seq){
+    if(diff.added.includes(i.stop.id)) continue;
+    if(before[i.stop.id]!==undefined && before[i.stop.id]!==i.start && i.start>=NOW)
+      diff.moved.push(i.stop.id);
+  }
+  return {seq,diff};
+}
+
+/* =========================================================================
+   EXPLANATION GENERATOR (templated — reads human)
+   ========================================================================= */
+function nameList(ids){
+  const n=ids.map(id=>byId(id).name);
+  if(n.length===0)return '';
+  if(n.length===1)return n[0];
+  if(n.length===2)return n[0]+' and '+n[1];
+  return n.slice(0,-1).join(', ')+' and '+n[n.length-1];
+}
+function dinnerOf(seq){return seq.find(i=>i.role==='dinner');}
+function topInterest(prefs){
+  const map={art:'art',food:'food',history:'history',nature:'the outdoors',shopping:'shopping',architecture:'architecture',nightlife:'nightlife'};
+  return prefs.interests.slice(0,2).map(i=>map[i]||i).join(' & ');
+}
+function explain(diff,seq,prefs){
+  const d=dinnerOf(seq);
+  const dinnerLine = d ? ` Your ${fmt(d.start)} dinner at <b>${d.stop.name}</b> is untouched.` : '';
+  if(diff.reason==='rain'){
+    if(diff.added.length===0)
+      return `☔ Rain rolled in at ${fmt(NOW)} — but your remaining stops are already indoors, so the plan holds.${dinnerLine}`;
+    return `☔ Rain rolled in at <b>${fmt(NOW)}</b>. I swapped your outdoor ${nameList(diff.removed)} for the indoor `+
+           `<b>${nameList(diff.added)}</b> — still a match for ${topInterest(prefs)}.${dinnerLine}`;
+  }
+  if(diff.reason==='closed'){
+    if(diff.meta.replName)
+      return `<b>${diff.meta.closedName}</b> just closed. I slotted in <b>${diff.meta.replName}</b> (similar vibe, nearby) and re-timed the rest of your afternoon.${dinnerLine}`;
+    return `<b>${diff.meta.closedName}</b> just closed and nothing comparable is open right now — I dropped it and tightened the day.${dinnerLine}`;
+  }
+  if(diff.reason==='behind'){
+    const dropped = diff.removed.length
+      ? ` I dropped <b>${nameList(diff.removed)}</b> (lowest on your list today) so you still make it`
+      : ` I shifted everything back and you still make it`;
+    return `⏰ You're running <b>${diff.meta.minutes} min behind</b>.${dropped} to your ${d?fmt(d.start):'evening'} dinner${d?` at <b>${d.stop.name}</b>`:''}.`;
+  }
+  return '';
+}
+
+/* =========================================================================
+   UI
+   ========================================================================= */
+const DEMOS=[
+  'One day in Lisbon — I love history and food, and I’d enjoy a scenic walk. Mid budget.',
+  'A relaxed day in Kyoto for a foodie who loves gardens and old temples.',
+  'Lisbon, art and architecture, happy to splurge on a great dinner.',
+];
+
+let state={prefs:null, base:null, current:null};
+
+const $=id=>document.getElementById(id);
+
+function renderChips(){
+  const c=$('chips');
+  DEMOS.forEach(d=>{
+    const b=document.createElement('button');
+    b.className='chip'; b.textContent='“'+d.slice(0,46)+(d.length>46?'…':'')+'”';
+    b.title=d; b.onclick=()=>{$('intake').value=d; doPlan();};
+    c.appendChild(b);
+  });
+}
+
+function renderSummary(p){
+  const cityName=CITIES.find(c=>c.id===p.city).name;
+  const pills=[cityName, ...p.interests, ['','$ budget','$$ budget','$$$ budget'][p.budget], p.pace+' pace'];
+  $('summary').innerHTML=pills.map(x=>`<span class="pill">${x}</span>`).join('');
+}
+
+function renderTimeline(seq,diff){
+  const tl=$('timeline'); tl.innerHTML='';
+  let nowDrawn=false;
+  seq.forEach(it=>{
+    if(!nowDrawn && it.start>=NOW){
+      const nm=document.createElement('div'); nm.className='nowmark';
+      nm.innerHTML=`<span>● NOW · ${fmt(NOW)}</span><span class="line"></span>`;
+      tl.appendChild(nm); nowDrawn=true;
+    }
+    const s=it.stop;
+    const el=document.createElement('div'); el.className='stop';
+    if(diff){
+      if(diff.added.includes(s.id)) el.classList.add('added');
+      else if(diff.moved.includes(s.id)) el.classList.add('moved');
+    }
+    const roleTag = it.role!=='sight' ? `<span class="tag role">${it.role==='lunch'?'Lunch':'Dinner'}</span>` : '';
+    el.innerHTML=`
+      <div class="time">${fmt(it.start)}<small>${s.durationMin} min</small></div>
+      <div class="icon">${CAT_ICON[s.category]||'📍'}</div>
+      <div class="body">
+        <div class="name">${s.name}</div>
+        <div class="blurb">${s.blurb}</div>
+        <div class="meta">
+          ${roleTag}
+          <span class="tag ${s.indoor?'in':'out'}">${s.indoor?'🏠 Indoor':'☀️ Outdoor'}</span>
+          <span class="tag cost">${costStr(s.cost)}</span>
+          ${s.interests.slice(0,2).map(i=>`<span class="tag">${i}</span>`).join('')}
+        </div>
+      </div>`;
+    tl.appendChild(el);
+  });
+  if(!nowDrawn){ // all stops are before NOW — still show the marker at the end
+    const nm=document.createElement('div'); nm.className='nowmark';
+    nm.innerHTML=`<span>● NOW · ${fmt(NOW)}</span><span class="line"></span>`;
+    tl.appendChild(nm);
+  }
+}
+
+function renderClosedSelect(){
+  const sel=$('closedSel'); sel.innerHTML='';
+  state.current.filter(i=>i.start>=NOW && i.role==='sight').forEach(i=>{
+    const o=document.createElement('option'); o.value=i.stop.id; o.textContent=i.stop.name; sel.appendChild(o);
+  });
+  if(!sel.options.length){
+    const o=document.createElement('option'); o.value=''; o.textContent='— no upcoming sight —'; sel.appendChild(o);
+  }
+}
+
+function showBanner(html,kind){
+  const b=$('banner'); b.className='banner show '+kind; b.innerHTML=html;
+}
+
+function cloneSeq(seq){return seq.map(i=>({stop:i.stop,role:i.role,start:i.start,end:i.end}));}
+
+function doPlan(){
+  const prefs=parseIntake($('intake').value);
+  state.prefs=prefs;
+  state.base=buildPlan(prefs);
+  state.current=cloneSeq(state.base);
+  renderSummary(prefs);
+  renderTimeline(state.current,null);
+  renderClosedSelect();
+  $('planTitle').textContent=`Your day in ${CITIES.find(c=>c.id===prefs.city).name}`;
+  $('planPanel').classList.remove('hidden');
+  $('disPanel').classList.remove('hidden');
+  $('banner').className='banner';
+  setDisabled(false);
+}
+
+function setDisabled(d){['rainBtn','closedBtn','behindBtn','closedSel'].forEach(id=>$(id).disabled=d);}
+
+function applyReroute(fn,kind){
+  const seq=cloneSeq(state.current);
+  const {seq:out,diff}=fn(seq);
+  state.current=out;
+  // render removed cards first (animate out), then settle into new plan
+  renderTimeline(out,diff);
+  renderClosedSelect();
+  showBanner(explain(diff,out,state.prefs),kind);
+}
+
+/* wire up */
+renderChips();
+$('planBtn').onclick=doPlan;
+$('rainBtn').onclick=()=>applyReroute(seq=>rerouteRain(seq,state.prefs),'rain');
+$('behindBtn').onclick=()=>applyReroute(seq=>rerouteBehind(seq,state.prefs),'behind');
+$('closedBtn').onclick=()=>{
+  const id=$('closedSel').value; if(!id)return;
+  applyReroute(seq=>rerouteClosed(seq,state.prefs,id),'closed');
+};
+$('resetBtn').onclick=()=>{
+  if(!state.base)return;
+  state.current=cloneSeq(state.base);
+  renderTimeline(state.current,null);
+  renderClosedSelect();
+  $('banner').className='banner';
+};
+</script>
+</body>
+</html>
