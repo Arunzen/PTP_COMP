@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Security headers (Backend.md §8). CSP allows OSM tiles for the Leaflet map
+# and same-origin API/data fetches only. Model output is rendered as text, never HTML.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; img-src 'self' https://*.tile.openstreetmap.org data:; connect-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"

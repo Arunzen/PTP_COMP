@@ -1,0 +1,32 @@
+{
+  "name": "tp-engine",
+  "private": true,
+  "type": "module",
+  "version": "2.0.0",
+  "description": "TP Engine — a day plan that reroutes itself, over real weather and real places.",
+  "scripts": {
+    "dev": "netlify dev",
+    "dev:fe": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@google/genai": "^2.7.0",
+    "leaflet": "^1.9.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-leaflet": "^4.2.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}
